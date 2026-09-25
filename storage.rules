@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role in ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'READ_ONLY_ADMIN']
+      );
+    }
+    
+    // Partner verification documents (KYC, Aadhaar, Police check)
+    match /partner_documents/{partnerId}/{fileName} {
+      // Accessible by the partner themselves or admins
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == partnerId);
+      // Restricted write: only valid image or pdf and max 5MB
+      allow write: if isAuthenticated() && (request.auth.uid == partnerId || isAdmin())
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+    
+    // Public service assets (icons, category thumbnails)
+    match /service_assets/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Default deny for all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
