@@ -1,8 +1,21 @@
+# Dependencies & build
 node_modules/
-build/
 dist/
+build/
 coverage/
+
+# OS & Logs
 .DS_Store
 *.log
-.env*
+
+# Environment & Secret files
+.env
+.env.*
 !.env.example
+
+# Private Credentials & Service Accounts
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
+*.pem
+*.key

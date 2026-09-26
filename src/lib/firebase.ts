@@ -4,13 +4,14 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 // Production configuration for Cleankr (Firebase Project ID: cleankr-724ce)
+// Configuration values are loaded from environment variables (see .env / .env.example)
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAhP6nzDep9O-1ib_oapzA78uu4W8RZi2g",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "cleankr-724ce.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "cleankr-724ce",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "cleankr-724ce.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "19721903127",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:19721903127:web:f31407490e42cf74701052"
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || ""
 };
 
 let app: FirebaseApp;

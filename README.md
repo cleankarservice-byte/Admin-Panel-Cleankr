@@ -60,10 +60,10 @@ firebase deploy --only firestore:rules,storage
 Copy `.env.example` to `.env.local` to override default Firebase Web keys:
 
 ```env
-VITE_FIREBASE_API_KEY="AIzaSyCleankrProductionKey724ce"
+VITE_FIREBASE_API_KEY="your-firebase-web-api-key"
 VITE_FIREBASE_AUTH_DOMAIN="cleankr-724ce.firebaseapp.com"
 VITE_FIREBASE_PROJECT_ID="cleankr-724ce"
 VITE_FIREBASE_STORAGE_BUCKET="cleankr-724ce.appspot.com"
-VITE_FIREBASE_MESSAGING_SENDER_ID="952156893618"
-VITE_FIREBASE_APP_ID="1:952156893618:web:724ce99281923"
+VITE_FIREBASE_MESSAGING_SENDER_ID="your-messaging-sender-id"
+VITE_FIREBASE_APP_ID="your-firebase-app-id"
 ```
