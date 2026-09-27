@@ -30,7 +30,9 @@ import {
   AuditLog, 
   SecurityAlert,
   AdminUser,
-  AdminRole
+  AdminRole,
+  Hub,
+  AppGlobalConfig
 } from '../types/cleankr';
 
 export type FirebaseConnectionState = 'CHECKING' | 'CONNECTED_LIVE' | 'FALLBACK_LOCAL' | 'PERMISSION_DENIED' | 'CONFIGURATION_REQUIRED';
@@ -176,5 +178,151 @@ export async function writeAuditLogToFirestore(log: AuditLog): Promise<boolean> 
   } catch (err) {
     console.warn('[Audit Log] Could not write to remote Firestore (will persist locally):', err);
     return false;
+  }
+}
+
+/**
+ * Real-time OTA Write-through: Sync Service Catalog directly to Firestore
+ * Customer App fetches collection('services') in real-time without Play Store updates.
+ */
+export async function writeServiceToFirestore(service: ServiceItem): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const sanitized = JSON.parse(JSON.stringify(service));
+    const srvRef = doc(db, 'services', service.id);
+    await setDoc(srvRef, {
+      ...sanitized,
+      serverUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn(`[Firestore OTA] Failed to write service ${service.id} to Firestore:`, err);
+    return false;
+  }
+}
+
+/**
+ * Real-time OTA Write-through: Sync Pune Hubs directly to Firestore
+ * Customer & Partner Apps fetch collection('hubs') in real-time.
+ */
+export async function writeHubToFirestore(hub: Hub): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const sanitized = JSON.parse(JSON.stringify(hub));
+    const hubRef = doc(db, 'hubs', hub.hubId);
+    await setDoc(hubRef, {
+      ...sanitized,
+      serverUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn(`[Firestore OTA] Failed to write hub ${hub.hubId} to Firestore:`, err);
+    return false;
+  }
+}
+
+/**
+ * Real-time OTA Write-through: Sync Partner Profile & Hub Assignments to Firestore
+ * Partner App listens to partners/{partnerId} in real-time.
+ */
+export async function writePartnerUpdateToFirestore(partnerId: string, updates: Partial<Partner>): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const sanitized = JSON.parse(JSON.stringify(updates));
+    const partnerRef = doc(db, 'partners', partnerId);
+    await setDoc(partnerRef, {
+      ...sanitized,
+      serverUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn(`[Firestore OTA] Failed to update partner ${partnerId} in Firestore:`, err);
+    return false;
+  }
+}
+
+/**
+ * Real-time OTA Write-through: Sync Customer Profile / Status to Firestore
+ */
+export async function writeCustomerUpdateToFirestore(customerId: string, updates: Partial<Customer>): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const sanitized = JSON.parse(JSON.stringify(updates));
+    const custRef = doc(db, 'customers', customerId);
+    await setDoc(custRef, {
+      ...sanitized,
+      serverUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn(`[Firestore OTA] Failed to update customer ${customerId} in Firestore:`, err);
+    return false;
+  }
+}
+
+/**
+ * Real-time OTA Write-through: Sync Global App Configuration & Dynamic Banners
+ * Customer & Partner apps listen to doc('app_config', 'global') for instant over-the-air updates
+ * (helpline numbers, emergency maintenance, banners, minimum version check).
+ */
+export async function writeAppConfigToFirestore(config: AppGlobalConfig): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const sanitized = JSON.parse(JSON.stringify(config));
+    const configRef = doc(db, 'app_config', 'global');
+    await setDoc(configRef, {
+      ...sanitized,
+      serverUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn('[Firestore OTA] Failed to write app_config/global to Firestore:', err);
+    return false;
+  }
+}
+
+/**
+ * Instant Bulk OTA Push: Pushes all Services, Hubs, and App Config to Firebase Firestore
+ * Customer App and Partner App update immediately without Play Store APK release.
+ */
+export async function pushAllToFirestore(
+  services: ServiceItem[],
+  hubs: Hub[],
+  config: AppGlobalConfig
+): Promise<{ success: boolean; syncedServices: number; syncedHubs: number; error?: string }> {
+  try {
+    if (!db) {
+      return { success: false, syncedServices: 0, syncedHubs: 0, error: 'Firestore client not initialized' };
+    }
+
+    // 1. Sync all services
+    let sCount = 0;
+    for (const srv of services) {
+      await writeServiceToFirestore(srv);
+      sCount++;
+    }
+
+    // 2. Sync all hubs
+    let hCount = 0;
+    for (const hub of hubs) {
+      await writeHubToFirestore(hub);
+      hCount++;
+    }
+
+    // 3. Sync app config & banners
+    await writeAppConfigToFirestore(config);
+
+    return {
+      success: true,
+      syncedServices: sCount,
+      syncedHubs: hCount
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      syncedServices: 0,
+      syncedHubs: 0,
+      error: err?.message || 'Bulk push failed'
+    };
   }
 }

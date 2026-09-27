@@ -18,6 +18,25 @@ export interface AdminUser {
   mfaEnabled?: boolean;
 }
 
+export interface CustomerReview {
+  id: string;
+  bookingId: string;
+  rating: number;
+  comment: string;
+  date: string;
+  serviceTitle?: string;
+  partnerName?: string;
+}
+
+export interface CustomerNotification {
+  id: string;
+  title: string;
+  body: string;
+  date: string;
+  channel: 'PUSH_FCM' | 'SMS_PRIORITY' | 'IN_APP';
+  read?: boolean;
+}
+
 export interface Customer {
   id: string;
   uid?: string;
@@ -30,6 +49,16 @@ export interface Customer {
   rating?: number;
   createdAt: string;
   updatedAt?: string;
+  servingHubId?: string;
+  servingHubName?: string;
+  deletionRequest?: {
+    requestedAt: string;
+    status: 'NONE' | 'PENDING_REVIEW' | 'PROCESSED' | 'REJECTED';
+    reason?: string;
+    notes?: string;
+  };
+  reviews?: CustomerReview[];
+  notifications?: CustomerNotification[];
   addresses?: Array<{
     id: string;
     label: string;
@@ -38,6 +67,8 @@ export interface Customer {
     landmark?: string;
     city: string;
     pincode: string;
+    matchedHubId?: string;
+    matchedHubName?: string;
   }>;
 }
 
@@ -53,6 +84,8 @@ export interface Partner {
   skills: string[];
   city: string;
   serviceAreas?: string[];
+  assignedHubIds?: string[];
+  primaryHubId?: string;
   rating: number;
   completedJobsCount: number;
   totalEarnings: number;
@@ -89,6 +122,22 @@ export type BookingStatus =
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'REFUNDED' | 'PARTIALLY_REFUNDED' | 'FAILED';
 
+export interface PriceSnapshot {
+  serviceId: string;
+  serviceName: string;
+  variant: string;
+  quantity: number;
+  basePrice: number;
+  addOns: Array<{ id: string; name: string; price: number }>;
+  addOnPrice: number;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  totalAmount: number;
+  priceVersion: string;
+  timestamp: string;
+}
+
 export interface Booking {
   id: string;
   customerId: string;
@@ -103,12 +152,16 @@ export interface Booking {
   packageName: string;
   date: string;
   timeSlot: string;
+  hubId?: string;
+  hubName?: string;
+  serviceArea?: string;
   address: {
     street: string;
     city: string;
     pincode: string;
     landmark?: string;
   };
+  priceSnapshot?: PriceSnapshot;
   totalAmount: number;
   partnerPayoutAmount: number;
   companyCommissionAmount: number;
@@ -121,34 +174,81 @@ export interface Booking {
   cancellationReason?: string;
   cancelledBy?: 'CUSTOMER' | 'PARTNER' | 'ADMIN';
   notes?: string;
+  refundStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'PROCESSED';
+  refundAmount?: number;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface ServicePackage {
+  id: string;
+  name: string;
+  description: string;
+  durationHours: number;
+  price: number;
+  partnerSharePercent: number;
+  isActive: boolean;
+}
+
+export interface ServiceAddOn {
+  id: string;
+  name: string;
+  price: number;
+  isActive?: boolean;
+}
+
+export interface PriceHistoryRecord {
+  id: string;
+  variantId?: string;
+  variantName: string;
+  oldPrice: number;
+  newPrice: number;
+  changedBy: string;
+  timestamp: string;
+  reason?: string;
 }
 
 export interface ServiceItem {
   id: string;
   title: string;
-  category: string;
+  category: 'BATHROOM' | 'KITCHEN' | 'FLAT' | 'OTHER' | string;
   description: string;
   isActive: boolean;
   iconName?: string;
-  packages: Array<{
-    id: string;
-    name: string;
-    description: string;
-    durationHours: number;
-    price: number;
-    partnerSharePercent: number;
-    isActive: boolean;
-  }>;
-  addOns?: Array<{
-    id: string;
-    name: string;
-    price: number;
-  }>;
+  displayOrder: number;
+  packages: ServicePackage[];
+  addOns?: ServiceAddOn[];
   availableCities: string[];
+  priceHistory?: PriceHistoryRecord[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface PriceAuditLog {
+  id: string;
+  adminId: string;
+  adminEmail?: string;
+  serviceId: string;
+  serviceName: string;
+  variantId?: string;
+  variantName?: string;
+  oldPrice: number;
+  newPrice: number;
+  timestamp: string;
+  action: string;
+}
+
+export interface Hub {
+  hubId: string;
+  hubName: string;
+  city: string;
+  state: string;
+  serviceAreas: string[];
+  pincodes: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  assignedPartnerIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ServiceChangeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -228,4 +328,35 @@ export interface SecurityAlert {
   timestamp: string;
   status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED';
   resolvedBy?: string;
+}
+
+export interface DynamicBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  badgeText?: string;
+  imageUrl?: string;
+  actionType: 'SERVICE' | 'CATEGORY' | 'EXTERNAL_LINK' | 'NONE';
+  actionTarget?: string;
+  displayOrder: number;
+  isActive: boolean;
+  validUntil?: string;
+}
+
+export interface AppGlobalConfig {
+  companyName: string;
+  supportEmail: string;
+  supportPhone: string;
+  supportWhatsapp: string;
+  commissionRate: number;
+  cancellationGraceMinutes: number;
+  isMaintenanceMode: boolean;
+  maintenanceMessage?: string;
+  minCustomerAppVersion: string;
+  minPartnerAppVersion: string;
+  activeAnnouncement?: string;
+  isAnnouncementActive: boolean;
+  banners: DynamicBanner[];
+  updatedAt: string;
+  updatedBy: string;
 }

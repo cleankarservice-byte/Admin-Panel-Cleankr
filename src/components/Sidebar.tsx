@@ -19,7 +19,8 @@ import {
   LogOut,
   RefreshCw,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -29,6 +30,7 @@ export type NavTab =
   | 'dashboard'
   | 'customers'
   | 'partners'
+  | 'hubs'
   | 'bookings'
   | 'services'
   | 'pricing'
@@ -67,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'customers', label: 'Customers', icon: Users, allowedRoles: ['OPERATIONS_ADMIN', 'SUPPORT_ADMIN'] },
     { id: 'partners', label: 'Partners', icon: UserCheck, badge: pendingApprovalsCount, badgeColor: 'bg-amber-500', allowedRoles: ['OPERATIONS_ADMIN'] },
+    { id: 'hubs', label: 'Hubs & Territory', icon: Building2, allowedRoles: ['OPERATIONS_ADMIN'] },
     { id: 'bookings', label: 'Bookings', icon: CalendarClock, allowedRoles: ['OPERATIONS_ADMIN', 'SUPPORT_ADMIN'] },
     { id: 'services', label: 'Services', icon: Layers, allowedRoles: ['OPERATIONS_ADMIN'] },
     { id: 'pricing', label: 'Fixed Pricing', icon: Tag, allowedRoles: ['OPERATIONS_ADMIN', 'FINANCE_ADMIN'] },

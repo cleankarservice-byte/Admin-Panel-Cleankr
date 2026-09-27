@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Registered consumer profile in Cleankr platform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "PENDING"] },
+        "servingHubId": { "type": "string" },
+        "totalBookings": { "type": "number" },
+        "totalSpent": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fullName", "email", "phoneNumber", "status"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Verified service technician pro in Cleankr network",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING_APPROVAL", "ACTIVE", "SUSPENDED", "REJECTED"] },
+        "city": { "type": "string" },
+        "assignedHubIds": { "type": "array" },
+        "primaryHubId": { "type": "string" },
+        "rating": { "type": "number" },
+        "completedJobsCount": { "type": "number" }
+      },
+      "required": ["id", "fullName", "email", "phoneNumber", "status"]
+    },
+    "Hub": {
+      "title": "Hub",
+      "description": "Operational territory zone governing pincodes and partner assignments",
+      "type": "object",
+      "properties": {
+        "hubId": { "type": "string" },
+        "hubName": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "serviceAreas": { "type": "array" },
+        "pincodes": { "type": "array" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "assignedPartnerIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hubId", "hubName", "city", "pincodes", "status"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Authoritative service catalog item and pricing package tier",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "displayOrder": { "type": "number" },
+        "packages": { "type": "array" },
+        "addOns": { "type": "array" }
+      },
+      "required": ["id", "title", "category", "isActive"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Consumer service order with immutable price snapshot and lifecycle progression",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceTitle": { "type": "string" },
+        "packageId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "hubId": { "type": "string" },
+        "hubName": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "bookingStatus": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "priceSnapshot": { "type": "object" }
+      },
+      "required": ["id", "customerId", "serviceId", "totalAmount", "bookingStatus", "paymentStatus"]
+    },
+    "PriceAuditLog": {
+      "title": "PriceAuditLog",
+      "description": "Immutable ledger tracking every price calibration event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "adminId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "oldPrice": { "type": "number" },
+        "newPrice": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "action": { "type": "string" }
+      },
+      "required": ["id", "adminId", "serviceId", "oldPrice", "newPrice", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Cleankr registered customer records"
+    },
+    "/partners/{partnerId}": {
+      "schema": { "$ref": "#/entities/Partner" },
+      "description": "Vetted cleaning professionals and territorial assignments"
+    },
+    "/hubs/{hubId}": {
+      "schema": { "$ref": "#/entities/Hub" },
+      "description": "Operational territory hubs with pincode mappings"
+    },
+    "/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Catalog of services and active price points"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Orders lifecycle with immutable price snapshots"
+    },
+    "/price_audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/PriceAuditLog" },
+      "description": "Historical price change records"
+    }
+  }
+}

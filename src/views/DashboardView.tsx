@@ -32,6 +32,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     customers, 
     partners, 
     bookings, 
+    hubs,
     serviceChanges, 
     securityAlerts, 
     approveServiceChange, 
@@ -94,6 +95,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               {firebaseDiagnostics.state === 'CONNECTED_LIVE' ? 'LIVE SYNC' :
                firebaseDiagnostics.state === 'PERMISSION_DENIED' ? 'DEFAULT DENY RULE' : 'LOCAL REPLICA'}
             </span>
+          </div>
+          <div 
+            onClick={() => onNavigate('hubs')}
+            className="cursor-pointer px-3.5 py-2 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 hover:border-cyan-500/40 flex items-center gap-2 text-xs transition"
+          >
+            <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-slate-400">Territory Hubs:</span>
+            <span className="text-cyan-400 font-semibold">{hubs.filter(h => h.status === 'ACTIVE').length} Active</span>
           </div>
           <div className="px-3.5 py-2 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2 text-xs">
             <span className="text-slate-400">Security State:</span>

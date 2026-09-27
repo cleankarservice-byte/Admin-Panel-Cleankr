@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Cleankr Admin Panel",
+  "description": "Official enterprise operations and management portal for Cleankr - Pune territory hubs, partner dispatching, fixed rate card catalog, customer management, and security controls.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

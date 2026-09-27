@@ -5,6 +5,7 @@ import { Sidebar, NavTab } from './components/Sidebar';
 import { DashboardView } from './views/DashboardView';
 import { CustomersView } from './views/CustomersView';
 import { PartnersView } from './views/PartnersView';
+import { HubsView } from './views/HubsView';
 import { BookingsView } from './views/BookingsView';
 import { ServicesAndPricingView } from './views/ServicesAndPricingView';
 import { ServiceChangesView } from './views/ServiceChangesView';
@@ -34,6 +35,8 @@ const AdminLayout: React.FC = () => {
         return <CustomersView />;
       case 'partners':
         return <PartnersView />;
+      case 'hubs':
+        return <HubsView />;
       case 'bookings':
         return <BookingsView />;
       case 'services':
