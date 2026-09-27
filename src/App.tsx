@@ -17,10 +17,10 @@ import { NotificationsView } from './views/NotificationsView';
 import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
 import { LoginView } from './views/LoginView';
-import { Search, Bell, Shield, ShieldCheck } from 'lucide-react';
+import { Search, Bell, Shield, ShieldCheck, LogOut, Lock } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
-  const { isAuthenticated, currentAdmin } = useAuth();
+  const { isAuthenticated, currentAdmin, logout } = useAuth();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
 
   if (!isAuthenticated) {
@@ -97,6 +97,15 @@ const AdminLayout: React.FC = () => {
             <div className="text-xs text-slate-400 font-mono hidden md:block">
               admin.cleankr.co.in
             </div>
+
+            <button
+              onClick={logout}
+              title="Lock Admin Control & Sign Out"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium transition cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock / Sign Out</span>
+            </button>
           </div>
         </header>
 

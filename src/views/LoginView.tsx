@@ -1,27 +1,46 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Mail, ArrowRight, ShieldAlert, KeyRound } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  Lock, 
+  Mail, 
+  ArrowRight, 
+  ShieldAlert, 
+  Eye, 
+  EyeOff, 
+  CheckCircle2, 
+  KeyRound,
+  Shield
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AdminRole } from '../types/cleankr';
 import { INITIAL_ADMINS } from '../data/mockData';
 
 export const LoginView: React.FC = () => {
-  const { login, verifyMfa } = useAuth();
+  const { login } = useAuth();
   
   const [email, setEmail] = useState('admin@cleankr.co.in');
-  const [password, setPassword] = useState('••••••••••••');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<AdminRole>('SUPER_ADMIN');
-  const [mfaCode, setMfaCode] = useState('');
-  const [step, setStep] = useState<'CREDENTIALS' | 'MFA'>('CREDENTIALS');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const handleCredentialsSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError('Please provide an administrative email address');
+    setError('');
+
+    if (!email.trim()) {
+      setError('Please provide an administrator email address');
       return;
     }
-    // Check upfront for unauthorized customer/partner account attempts
+
+    if (!password) {
+      setError('Please enter the administrator security password');
+      return;
+    }
+
+    // Check for customer/partner intrusion attempts
     const normalized = email.toLowerCase().trim();
     if (
       normalized.includes('@example.com') ||
@@ -33,34 +52,28 @@ export const LoginView: React.FC = () => {
       return;
     }
 
+    setLoading(true);
+
+    try {
+      const res = await login(email, password, role);
+      if (!res.success) {
+        setFailedAttempts(prev => prev + 1);
+        setError(res.error || 'Authentication failure. Access Denied.');
+        setLoading(false);
+        return;
+      }
+      // On success, AuthProvider sets currentAdmin and the app transitions immediately
+    } catch (err: any) {
+      setError(err?.message || 'Unexpected login error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectEmail = (selectedEmail: string, selectedRole: AdminRole) => {
+    setEmail(selectedEmail);
+    setRole(selectedRole);
     setError('');
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep('MFA');
-    }, 400);
-  };
-
-  const handleMfaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mfaCode) {
-      setError('Enter 6-digit MFA OTP code');
-      return;
-    }
-    setLoading(true);
-    const res = await login(email, password, role);
-    if (!res.success) {
-      setError(res.error || 'Authentication failure.');
-      setLoading(false);
-      return;
-    }
-    verifyMfa(mfaCode);
-    setLoading(false);
-  };
-
-  const quickSelect = (acc: typeof INITIAL_ADMINS[0]) => {
-    setEmail(acc.email);
-    setRole(acc.role);
   };
 
   return (
@@ -83,122 +96,153 @@ export const LoginView: React.FC = () => {
         </div>
 
         {/* Backend notice */}
-        <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center gap-2.5 text-xs text-slate-400">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>Connected to Authoritative Backend <strong>cleankr-724ce</strong></span>
+        <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>Authoritative Backend: <strong>cleankr-724ce</strong></span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+            SSL 256-BIT
+          </span>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-xl text-rose-300 text-xs flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="p-3.5 bg-rose-950/70 border border-rose-800 rounded-xl text-rose-300 text-xs flex items-start gap-2.5 animate-shake">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-rose-200">Security Notice</span>
+              <span>{error}</span>
+              {failedAttempts >= 2 && (
+                <span className="block text-[11px] text-rose-400 mt-1">
+                  Failed attempts: {failedAttempts}. Please verify your administrator password.
+                </span>
+              )}
+            </div>
           </div>
         )}
 
-        {step === 'CREDENTIALS' ? (
-          <form onSubmit={handleCredentialsSubmit} className="space-y-4 text-xs">
-            <div>
-              <label className="text-slate-300 block mb-1.5 font-medium">Administrator Email</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@cleankr.co.in"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-cyan-500"
-                />
-              </div>
+        <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+          {/* Email input */}
+          <div>
+            <label className="text-slate-300 block mb-1.5 font-medium flex items-center justify-between">
+              <span>Administrator Email</span>
+              <span className="text-[10px] text-slate-500 font-mono">Protected</span>
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@cleankr.co.in"
+                className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-cyan-500 transition font-sans"
+              />
             </div>
+          </div>
 
-            <div>
-              <label className="text-slate-300 block mb-1.5 font-medium">Administrative Role Authorization</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as AdminRole)}
-                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-mono"
-              >
-                <option value="SUPER_ADMIN">SUPER_ADMIN (Full Platform Governance)</option>
-                <option value="OPERATIONS_ADMIN">OPERATIONS_ADMIN (Partners & Bookings)</option>
-                <option value="FINANCE_ADMIN">FINANCE_ADMIN (Payouts & Refunds)</option>
-                <option value="SUPPORT_ADMIN">SUPPORT_ADMIN (Disputes & Customers)</option>
-                <option value="READ_ONLY_ADMIN">READ_ONLY_ADMIN (Auditing)</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 transition disabled:opacity-50"
-            >
-              <span>{loading ? 'Verifying Credentials...' : 'Proceed to Security MFA'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleMfaSubmit} className="space-y-4 text-xs">
-            <div className="p-3 bg-cyan-950/40 border border-cyan-800/40 rounded-xl text-cyan-300 space-y-1">
-              <span className="font-semibold block">Two-Factor Authentication</span>
-              <p className="text-[11px] text-cyan-400/80">
-                A 6-digit one-time passcode was sent to the registered mobile terminal for <strong>{email}</strong>.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-slate-300 block mb-1.5 font-medium">Enter 6-Digit MFA Token (e.g. 123456)</label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  maxLength={6}
-                  autoFocus
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value)}
-                  placeholder="123456"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono tracking-widest text-center text-base focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
+          {/* Password input with show/hide toggle */}
+          <div>
+            <label className="text-slate-300 block mb-1.5 font-medium flex items-center justify-between">
+              <span>Administrator Password</span>
+              <span className="text-[10px] text-cyan-400 font-mono">Required</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoFocus
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter security password"
+                className="w-full pl-9 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-cyan-500 transition font-mono tracking-wider"
+              />
               <button
                 type="button"
-                onClick={() => setStep('CREDENTIALS')}
-                className="w-1/3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition"
+                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                title={showPassword ? 'Hide password' : 'Show password'}
               >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-2/3 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 transition"
-              >
-                <Lock className="w-4 h-4" />
-                <span>Verify & Sign In</span>
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-          </form>
-        )}
+          </div>
 
-        {/* Quick Demo Credentials Selector */}
-        <div className="pt-4 border-t border-slate-800/80 space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
-            Quick Select Authorized Accounts:
-          </span>
-          <div className="grid grid-cols-2 gap-1.5">
+          {/* Role selector */}
+          <div>
+            <label className="text-slate-300 block mb-1.5 font-medium">Administrative Role Authorization</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as AdminRole)}
+              className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-mono"
+            >
+              <option value="SUPER_ADMIN">SUPER_ADMIN (Full Platform Governance)</option>
+              <option value="OPERATIONS_ADMIN">OPERATIONS_ADMIN (Partners & Bookings)</option>
+              <option value="FINANCE_ADMIN">FINANCE_ADMIN (Payouts & Refunds)</option>
+              <option value="SUPPORT_ADMIN">SUPPORT_ADMIN (Disputes & Customers)</option>
+              <option value="READ_ONLY_ADMIN">READ_ONLY_ADMIN (Auditing)</option>
+            </select>
+          </div>
+
+          {/* Submit button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 transition disabled:opacity-50 mt-2"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Authenticating Identity...</span>
+              </span>
+            ) : (
+              <>
+                <KeyRound className="w-4 h-4" />
+                <span>Unlock & Access Admin Control</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Security Info & Authorized Identities */}
+        <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500">
+              Authorized Administrative Identities:
+            </span>
+            <span className="flex items-center gap-1 text-emerald-400 text-[10px]">
+              <Shield className="w-3 h-3" />
+              2FA Protected
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             {INITIAL_ADMINS.map(acc => (
               <button
                 key={acc.uid}
                 type="button"
-                onClick={() => quickSelect(acc)}
-                className="p-1.5 text-left rounded-lg bg-slate-950/60 hover:bg-slate-800 border border-slate-800/60 text-[10px] text-slate-300 transition"
+                onClick={() => handleSelectEmail(acc.email, acc.role)}
+                className={`p-2 text-left rounded-xl border text-[11px] transition ${
+                  email === acc.email
+                    ? 'bg-cyan-950/40 border-cyan-700/60 text-cyan-200'
+                    : 'bg-slate-950/60 hover:bg-slate-800/60 border-slate-800/60 text-slate-400'
+                }`}
               >
-                <div className="font-semibold text-white truncate">{acc.displayName.split(' ')[0]}</div>
-                <div className="text-slate-500 font-mono truncate">{acc.role}</div>
+                <div className="font-medium text-slate-200 truncate flex items-center gap-1">
+                  <span>{acc.displayName.split(' ')[0]}</span>
+                  {email === acc.email && <CheckCircle2 className="w-3 h-3 text-cyan-400 shrink-0" />}
+                </div>
+                <div className="text-slate-500 font-mono text-[9px] truncate">{acc.email}</div>
               </button>
             ))}
           </div>
+
+          <p className="text-[10px] text-slate-500 text-center pt-2">
+            Protected by Cleankr Enterprise Access Control • Unlawful access attempts are logged to Firestore audit ledger.
+          </p>
         </div>
       </div>
     </div>

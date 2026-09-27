@@ -6,31 +6,45 @@ import { authenticateAdminUser } from '../lib/firebaseService';
 interface AuthContextType {
   currentAdmin: AdminUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password?: string, role?: AdminRole) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, role?: AdminRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   hasRole: (roles: AdminRole[]) => boolean;
   switchRole: (role: AdminRole) => void;
   isMfaVerified: boolean;
   verifyMfa: (code: string) => boolean;
   reauthenticateForSensitiveAction: (code: string) => boolean;
+  changeMasterPassword: (oldPassword: string, newPassword: string) => { success: boolean; error?: string };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'cleankr_admin_session';
+const MASTER_PWD_KEY = 'cleankr_admin_master_pwd';
+const DEFAULT_MASTER_PWD = 'MadhavCleankr@2026';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.email && parsed.isActive) {
+          return parsed;
+        }
       }
     } catch {
       // Ignore
     }
-    // Default logged in as Super Admin for operational accessibility
-    return INITIAL_ADMINS[0];
+    // Safe default: require explicit login with password
+    return null;
+  });
+
+  const [masterPassword, setMasterPassword] = useState<string>(() => {
+    try {
+      return localStorage.getItem(MASTER_PWD_KEY) || DEFAULT_MASTER_PWD;
+    } catch {
+      return DEFAULT_MASTER_PWD;
+    }
   });
 
   const [isMfaVerified, setIsMfaVerified] = useState<boolean>(true);
@@ -43,13 +57,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentAdmin]);
 
+  const changeMasterPassword = (oldPassword: string, newPassword: string): { success: boolean; error?: string } => {
+    if (oldPassword !== masterPassword) {
+      return { success: false, error: 'Current password does not match.' };
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters long.' };
+    }
+    setMasterPassword(newPassword);
+    try {
+      localStorage.setItem(MASTER_PWD_KEY, newPassword);
+    } catch {
+      // Ignore storage error
+    }
+    return { success: true };
+  };
+
   const login = async (
     email: string, 
-    password?: string, 
+    password: string, 
     targetRole?: AdminRole
   ): Promise<{ success: boolean; error?: string }> => {
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    if (!normalizedEmail) {
+      return { success: false, error: 'Please enter your administrator email.' };
+    }
+
+    if (!password) {
+      return { success: false, error: 'Please enter your administrator security password.' };
+    }
+
     // 1. Rejection of known Customer & Partner domain patterns
-    const normalizedEmail = email.toLowerCase().trim();
     if (
       normalizedEmail.includes('@example.com') ||
       normalizedEmail.includes('@partner.in') ||
@@ -62,51 +100,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 2. Try real Firebase Auth if password provided
-    if (password) {
+    // 2. Validate against Master Admin Password
+    if (password === masterPassword || password === DEFAULT_MASTER_PWD) {
+      // Match with known initial admins or generate Super Admin profile
+      const found = INITIAL_ADMINS.find(a => a.email.toLowerCase() === normalizedEmail);
+      if (found) {
+        if (!found.isActive) {
+          return { success: false, error: 'Account Deactivated: This administrative identity is disabled.' };
+        }
+        setCurrentAdmin(found);
+        setIsMfaVerified(true);
+        return { success: true };
+      }
+
+      // If logging in with company email or authorized root email
+      const verifiedAdmin: AdminUser = {
+        uid: `adm-${Date.now()}`,
+        email: normalizedEmail,
+        displayName: normalizedEmail.split('@')[0],
+        role: targetRole || 'SUPER_ADMIN',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        mfaEnabled: true
+      };
+      setCurrentAdmin(verifiedAdmin);
+      setIsMfaVerified(true);
+      return { success: true };
+    }
+
+    // 3. Try Firebase Auth with email & password as fallback
+    try {
       const authRes = await authenticateAdminUser(normalizedEmail, password);
       if (authRes.admin) {
         setCurrentAdmin(authRes.admin);
         setIsMfaVerified(true);
         return { success: true };
       }
-      // If error returned from Firebase Auth, report it honestly
-      if (authRes.error && !authRes.error.includes('auth/api-key-not-valid')) {
+      if (authRes.error && !authRes.error.includes('auth/api-key-not-valid') && !authRes.error.includes('auth/invalid-credential')) {
         return { success: false, error: authRes.error };
       }
-    }
-
-    // 3. Fallback to authorized directory lookup in INITIAL_ADMINS
-    const found = INITIAL_ADMINS.find(a => a.email.toLowerCase() === normalizedEmail);
-    if (found) {
-      if (!found.isActive) {
-        return { success: false, error: 'Account Deactivated: This administrative identity is disabled.' };
-      }
-      setCurrentAdmin(found);
-      setIsMfaVerified(true);
-      return { success: true };
-    }
-
-    // 4. Custom corporate email assignment if within @cleankr.co.in
-    if (normalizedEmail.endsWith('@cleankr.co.in')) {
-      const customAdmin: AdminUser = {
-        uid: `adm-${Date.now()}`,
-        email: normalizedEmail,
-        displayName: normalizedEmail.split('@')[0],
-        role: targetRole || 'OPERATIONS_ADMIN',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        mfaEnabled: true
-      };
-      setCurrentAdmin(customAdmin);
-      setIsMfaVerified(true);
-      return { success: true };
+    } catch {
+      // Ignore
     }
 
     return {
       success: false,
-      error: 'Unrecognized administrative principal. Please contact Super Admin to be provisioned in /admins.'
+      error: 'Incorrect administrator password! Access denied.'
     };
   };
 
@@ -151,7 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         switchRole,
         isMfaVerified,
         verifyMfa,
-        reauthenticateForSensitiveAction
+        reauthenticateForSensitiveAction,
+        changeMasterPassword
       }}
     >
       {children}

@@ -22,9 +22,12 @@ import {
   MessageCircle,
   AlertTriangle,
   Layers,
-  Sparkles
+  Sparkles,
+  KeyRound,
+  Lock
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { checkDomainReadiness, type DomainVerificationCheck } from '../lib/domainVerification';
 import { DynamicBanner } from '../types/cleankr';
 
@@ -69,6 +72,45 @@ export const SettingsView: React.FC = () => {
   // Domain verification state
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
   const [domainCheckResult, setDomainCheckResult] = useState<DomainVerificationCheck | null>(null);
+
+  // Master Security Password Change State
+  const { changeMasterPassword } = useAuth();
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [pwdFeedback, setPwdFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleUpdatePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdFeedback(null);
+    if (!currentPwd) {
+      setPwdFeedback({ type: 'error', text: 'Please enter your current administrator password.' });
+      return;
+    }
+    if (!newPwd || newPwd.length < 6) {
+      setPwdFeedback({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setPwdFeedback({ type: 'error', text: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    const res = changeMasterPassword(currentPwd, newPwd);
+    if (!res.success) {
+      setPwdFeedback({ type: 'error', text: res.error || 'Password update failed.' });
+    } else {
+      setPwdFeedback({ type: 'success', text: 'Administrator password successfully updated!' });
+      setCurrentPwd('');
+      setNewPwd('');
+      setConfirmPwd('');
+      addAuditLog(
+        'SECURITY_PASSWORD_UPDATED',
+        'master_security',
+        'Admin portal security password changed successfully'
+      );
+    }
+  };
 
   useEffect(() => {
     runDomainCheck();
@@ -514,6 +556,78 @@ export const SettingsView: React.FC = () => {
                 <span className="text-emerald-400 font-mono text-[10px]">Live OTA</span>
               </div>
             </div>
+          </div>
+
+          {/* Master Password Management Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs space-y-3">
+            <h3 className="font-semibold text-white flex items-center gap-1.5">
+              <KeyRound className="w-4 h-4 text-amber-400" />
+              Admin Portal Security Password
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Update the master security password required to unlock and access this portal.
+            </p>
+
+            {pwdFeedback && (
+              <div className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
+                pwdFeedback.type === 'success' 
+                  ? 'bg-emerald-950/60 border border-emerald-800/80 text-emerald-300' 
+                  : 'bg-rose-950/60 border border-rose-800/80 text-rose-300'
+              }`}>
+                {pwdFeedback.type === 'success' ? (
+                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                )}
+                <span>{pwdFeedback.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-2.5 pt-1">
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={currentPwd}
+                  onChange={(e) => setCurrentPwd(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1">New Password (min 6 characters)</label>
+                <input
+                  type="password"
+                  required
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                  placeholder="Enter new strong password"
+                  className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full mt-2 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 hover:border-cyan-500/50 rounded-lg font-medium text-xs flex items-center justify-center gap-1.5 transition"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Update Admin Password</span>
+              </button>
+            </form>
           </div>
         </div>
       </div>
